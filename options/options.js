@@ -4,7 +4,7 @@
   const logic = globalThis.GitHubAccountGuardLogic;
   const STORAGE_KEY = "expectedUsername";
   const form = document.getElementById("account-form");
-  const input = document.getElementById("expected-username");
+  const input = document.getElementById("expected-usernames");
   const status = document.getElementById("status");
 
   function setStatus(message, kind) {
@@ -18,13 +18,16 @@
       return;
     }
 
-    input.value = result[STORAGE_KEY];
+    const savedValue = result[STORAGE_KEY];
+    input.value = (Array.isArray(savedValue) ? savedValue : [savedValue])
+      .filter(Boolean)
+      .join("\n");
     input.focus();
   });
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    const validation = logic.validateUsername(input.value);
+    const validation = logic.validateUsernames(input.value);
 
     if (!validation.valid) {
       input.setAttribute("aria-invalid", "true");
@@ -34,14 +37,15 @@
     }
 
     input.removeAttribute("aria-invalid");
-    input.value = validation.username;
-    chrome.storage.sync.set({ [STORAGE_KEY]: validation.username }, () => {
+    input.value = validation.usernames.join("\n");
+    chrome.storage.sync.set({ [STORAGE_KEY]: validation.usernames }, () => {
       if (chrome.runtime.lastError) {
         setStatus(`Could not save the username: ${chrome.runtime.lastError.message}`, "error");
         return;
       }
 
-      setStatus(`Saved @${validation.username} as the expected account.`, "success");
+      const noun = validation.usernames.length === 1 ? "alias" : "aliases";
+      setStatus(`Saved ${validation.usernames.length} expected ${noun}.`, "success");
     });
   });
 })();

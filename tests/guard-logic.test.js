@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const {
   normalizeUsername,
   validateUsername,
+  validateUsernames,
   detectAccountFromMetadata,
   decideGuardState
 } = require("../src/guard-logic.js");
@@ -38,6 +39,21 @@ test("rejects malformed GitHub usernames", () => {
   });
 });
 
+test("normalizes and deduplicates an arbitrary number of expected aliases", () => {
+  assert.deepEqual(validateUsernames([" OctoCat ", "@Hubot", "octocat"]), {
+    valid: true,
+    usernames: ["octocat", "hubot"],
+    error: ""
+  });
+  assert.deepEqual(validateUsernames("OctoCat\nHubot"), {
+    valid: true,
+    usernames: ["octocat", "hubot"],
+    error: ""
+  });
+  assert.equal(validateUsernames([]).valid, false);
+  assert.equal(validateUsernames(["octocat", "not valid!"]).valid, false);
+});
+
 test("detects a signed-in account from GitHub metadata", () => {
   assert.deepEqual(detectAccountFromMetadata(metadata("Octo-Cat")), {
     status: "signed-in",
@@ -69,16 +85,16 @@ test("requires setup before evaluating account mismatch", () => {
 
 test("distinguishes match, mismatch, logged-out, and indeterminate states", () => {
   assert.equal(
-    decideGuardState("octocat", { status: "signed-in", username: "OCTOCAT" }).kind,
+    decideGuardState(["octocat", "hubot"], { status: "signed-in", username: "HUBOT" }).kind,
     "match"
   );
 
   assert.deepEqual(
-    decideGuardState("octocat", { status: "signed-in", username: "hubot" }),
+    decideGuardState(["octocat", "hubot"], { status: "signed-in", username: "monalisa" }),
     {
       kind: "mismatch",
-      expectedUsername: "octocat",
-      actualUsername: "hubot"
+      expectedUsernames: ["octocat", "hubot"],
+      actualUsername: "monalisa"
     }
   );
 

@@ -1,7 +1,7 @@
 # GitHub Account Guard for Microsoft Edge
 
 GitHub Account Guard is a small Manifest V3 extension that warns when
-GitHub.com is signed in with a different account than the one you expect.
+GitHub.com is signed in with an account that is not one of the aliases you expect.
 It runs only on `https://github.com/*`.
 
 ## Install in Edge
@@ -11,7 +11,7 @@ It runs only on `https://github.com/*`.
 3. Select **Load unpacked**.
 4. Select this project folder (the folder containing `manifest.json`).
 5. Open the extension's **Details**, then select **Extension options**.
-6. Enter and save the one GitHub username you expect to use.
+6. Enter and save the GitHub aliases you expect to use, one per line.
 7. Open or reload `https://github.com` to test it.
 
 After editing the extension's files, use the **Reload** button on
@@ -19,23 +19,23 @@ After editing the extension's files, use the **Reload** button on
 
 ## What you will see
 
-- **Red bar:** GitHub is signed in as a different account. The bar names both
-  the actual and expected usernames.
-- **Amber setup bar:** No expected account is configured. Use its button to
+- **Red bar:** GitHub is signed in with an unexpected account. The bar names
+  the account that is currently signed in.
+- **Amber setup bar:** No expected alias is configured. Use its button to
   open the options page.
 - **Yellow caution bar:** The extension could not determine the signed-in
   account, so it does not assume the session is safe.
-- **No bar:** The expected account matches, or GitHub's metadata explicitly
+- **No bar:** The signed-in account matches an expected alias, or GitHub's metadata explicitly
   indicates that the browser is logged out.
 
-The fixed warning overlays the top of the viewport. It does not shift or
-permanently modify GitHub's layout.
+The sticky warning reserves space above GitHub's interface so it does not cover
+the site's menus or controls.
 
 ## Permissions, security, and privacy
 
 - **Site access for `https://github.com/*`:** needed to read GitHub's local page
   metadata and display the warning.
-- **Storage:** needed to save one expected username with Edge extension sync.
+- **Storage:** needed to save the expected aliases with Edge extension sync.
 
 The extension does not use GitHub tokens, make network or GitHub API requests,
 run remote code, include analytics, or send account information anywhere.

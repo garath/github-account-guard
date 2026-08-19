@@ -4,14 +4,17 @@
   const logic = globalThis.GitHubAccountGuardLogic;
   const STORAGE_KEY = "expectedUsername";
   const HOST_ID = "github-account-guard-root";
+  const PAGE_STYLE_ID = "github-account-guard-page-style";
+  const HEIGHT_PROPERTY = "--github-account-guard-height";
   const META_SELECTOR = 'meta[name="user-login"]';
   const NAVIGATION_EVENTS = ["turbo:load", "turbo:render", "pjax:end", "pageshow", "popstate"];
 
-  let expectedUsername = "";
+  let expectedUsernames = [];
   let currentStateKey = "";
   let evaluationTimer = null;
   let headObserver = null;
   let documentObserver = null;
+  let guardResizeObserver = null;
 
   function scheduleEvaluation() {
     if (evaluationTimer !== null) {
@@ -26,22 +29,53 @@
 
   function evaluate() {
     const account = logic.detectAccountFromMetadata(document.querySelector(META_SELECTOR));
-    const state = logic.decideGuardState(expectedUsername, account);
+    const state = logic.decideGuardState(expectedUsernames, account);
     render(state);
   }
 
   function stateKey(state) {
     return [
       state.kind,
-      state.expectedUsername || "",
+      (state.expectedUsernames || []).join(","),
       state.actualUsername || "",
       state.reason || ""
     ].join("|");
   }
 
   function removeGuard() {
+    guardResizeObserver?.disconnect();
+    guardResizeObserver = null;
     document.getElementById(HOST_ID)?.remove();
+    document.getElementById(PAGE_STYLE_ID)?.remove();
+    document.documentElement?.style.removeProperty(HEIGHT_PROPERTY);
     currentStateKey = "";
+  }
+
+  function ensurePageStyle() {
+    if (document.getElementById(PAGE_STYLE_ID) || !document.head) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = PAGE_STYLE_ID;
+    style.textContent = `
+      .AppHeader {
+        top: var(${HEIGHT_PROPERTY}, 0px) !important;
+      }
+    `;
+    document.head.append(style);
+  }
+
+  function trackGuardHeight(bar) {
+    const updateHeight = () => {
+      const height = Math.ceil(bar.getBoundingClientRect().height);
+      document.documentElement.style.setProperty(HEIGHT_PROPERTY, `${height}px`);
+    };
+
+    guardResizeObserver?.disconnect();
+    guardResizeObserver = new ResizeObserver(updateHeight);
+    guardResizeObserver.observe(bar);
+    updateHeight();
   }
 
   function render(state) {
@@ -50,14 +84,17 @@
       return;
     }
 
+    ensurePageStyle();
     const nextStateKey = stateKey(state);
     const existingHost = document.getElementById(HOST_ID);
     if (existingHost && currentStateKey === nextStateKey) {
       return;
     }
 
+    guardResizeObserver?.disconnect();
+    guardResizeObserver = null;
     existingHost?.remove();
-    if (!document.documentElement) {
+    if (!document.body) {
       return;
     }
 
@@ -70,6 +107,11 @@
       :host {
         all: initial;
         color-scheme: light;
+        display: block;
+        position: sticky;
+        top: 0;
+        width: 100%;
+        z-index: 2147483647;
       }
 
       .guard-bar {
@@ -81,15 +123,10 @@
         font-weight: 600;
         gap: 12px;
         justify-content: center;
-        left: 0;
         line-height: 1.4;
         min-height: 48px;
         padding: 10px 16px;
-        position: fixed;
-        right: 0;
-        top: 0;
-        width: 100vw;
-        z-index: 2147483647;
+        width: 100%;
       }
 
       .guard-bar--mismatch {
@@ -156,12 +193,11 @@
 
     if (state.kind === "mismatch") {
       bar.classList.add("guard-bar--mismatch");
-      message.textContent =
-        `GitHub Account Guard: signed in as @${state.actualUsername}, but expected @${state.expectedUsername}.`;
+      message.textContent = `GitHub Account Guard: signed in as @${state.actualUsername}.`;
     } else if (state.kind === "setup-needed") {
       bar.classList.add("guard-bar--setup");
-      message.textContent = "GitHub Account Guard needs an expected GitHub username.";
-      bar.append(message, createButton("Configure account", openOptions));
+      message.textContent = "GitHub Account Guard needs at least one expected GitHub alias.";
+      bar.append(message, createButton("Configure aliases", openOptions));
     } else {
       bar.classList.add("guard-bar--caution");
       message.textContent =
@@ -174,7 +210,8 @@
     }
 
     shadow.append(style, bar);
-    document.documentElement.append(host);
+    document.body.prepend(host);
+    trackGuardHeight(bar);
     currentStateKey = nextStateKey;
   }
 
@@ -217,6 +254,15 @@
         observeHead();
         scheduleEvaluation();
       }
+
+      const bodyChanged = mutations.some((mutation) =>
+        Array.from(mutation.addedNodes).some((node) => node.nodeName === "BODY") ||
+        Array.from(mutation.removedNodes).some((node) => node.nodeName === "BODY")
+      );
+
+      if (bodyChanged) {
+        scheduleEvaluation();
+      }
     });
 
     documentObserver.observe(document.documentElement, { childList: true });
@@ -225,16 +271,16 @@
   function start() {
     chrome.storage.sync.get({ [STORAGE_KEY]: "" }, (result) => {
       if (chrome.runtime.lastError) {
-        expectedUsername = "";
+        expectedUsernames = [];
       } else {
-        expectedUsername = result[STORAGE_KEY];
+        expectedUsernames = result[STORAGE_KEY];
       }
       scheduleEvaluation();
     });
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === "sync" && changes[STORAGE_KEY]) {
-        expectedUsername = changes[STORAGE_KEY].newValue || "";
+        expectedUsernames = changes[STORAGE_KEY].newValue || [];
         scheduleEvaluation();
       }
     });

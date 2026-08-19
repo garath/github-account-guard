@@ -45,6 +45,46 @@
     };
   }
 
+  function validateUsernames(value) {
+    const values = Array.isArray(value)
+      ? value
+      : typeof value === "string"
+        ? value.split(/[\n,]/)
+        : [];
+    const usernames = new Set();
+
+    for (const candidate of values) {
+      if (typeof candidate === "string" && !candidate.trim()) {
+        continue;
+      }
+
+      const validation = validateUsername(candidate);
+      if (!validation.valid) {
+        return {
+          valid: false,
+          usernames: [],
+          error: validation.error
+        };
+      }
+
+      usernames.add(validation.username);
+    }
+
+    if (usernames.size === 0) {
+      return {
+        valid: false,
+        usernames: [],
+        error: "Enter at least one GitHub username."
+      };
+    }
+
+    return {
+      valid: true,
+      usernames: Array.from(usernames),
+      error: ""
+    };
+  }
+
   function detectAccountFromMetadata(metaElement) {
     if (!metaElement) {
       return {
@@ -88,12 +128,12 @@
   }
 
   function decideGuardState(expectedValue, account) {
-    const expectedValidation = validateUsername(expectedValue);
+    const expectedValidation = validateUsernames(expectedValue);
 
     if (!expectedValidation.valid) {
       return {
         kind: "setup-needed",
-        expectedUsername: null,
+        expectedUsernames: [],
         actualUsername: account && account.username ? account.username : null
       };
     }
@@ -101,7 +141,7 @@
     if (!account || account.status === "indeterminate") {
       return {
         kind: "indeterminate",
-        expectedUsername: expectedValidation.username,
+        expectedUsernames: expectedValidation.usernames,
         actualUsername: null,
         reason: account && account.reason ? account.reason : "GitHub account verification was unavailable."
       };
@@ -110,7 +150,7 @@
     if (account.status === "logged-out") {
       return {
         kind: "logged-out",
-        expectedUsername: expectedValidation.username,
+        expectedUsernames: expectedValidation.usernames,
         actualUsername: null
       };
     }
@@ -118,24 +158,24 @@
     if (account.status !== "signed-in" || !account.username) {
       return {
         kind: "indeterminate",
-        expectedUsername: expectedValidation.username,
+        expectedUsernames: expectedValidation.usernames,
         actualUsername: null,
         reason: "GitHub account verification returned an unknown state."
       };
     }
 
     const actualUsername = normalizeUsername(account.username);
-    if (actualUsername !== expectedValidation.username) {
+    if (!expectedValidation.usernames.includes(actualUsername)) {
       return {
         kind: "mismatch",
-        expectedUsername: expectedValidation.username,
+        expectedUsernames: expectedValidation.usernames,
         actualUsername
       };
     }
 
     return {
       kind: "match",
-      expectedUsername: expectedValidation.username,
+      expectedUsernames: expectedValidation.usernames,
       actualUsername
     };
   }
@@ -144,6 +184,7 @@
     USERNAME_PATTERN,
     normalizeUsername,
     validateUsername,
+    validateUsernames,
     detectAccountFromMetadata,
     decideGuardState
   };
