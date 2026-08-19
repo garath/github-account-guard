@@ -33,8 +33,31 @@ test("accepts valid GitHub usernames", () => {
   assert.equal(validateUsername("a".repeat(39)).valid, true);
 });
 
+test("accepts Enterprise Managed User usernames", () => {
+  assert.deepEqual(validateUsername("Mona-Cat_OCTO"), {
+    valid: true,
+    username: "mona-cat_octo",
+    error: ""
+  });
+  assert.equal(validateUsername("octo_admin").valid, true);
+  assert.equal(validateUsername("mistucke_microsoft").valid, true);
+  assert.equal(validateUsername(`${"a".repeat(30)}_12345678`).valid, true);
+});
+
 test("rejects malformed GitHub usernames", () => {
-  ["", "-", "-octocat", "octocat-", "octo--cat", "octo_cat", "a".repeat(40)].forEach((value) => {
+  [
+    "",
+    "-",
+    "-octocat",
+    "octocat-",
+    "octo--cat",
+    "octo_ab",
+    "octo_abcdefghij",
+    "octo_short-code",
+    "octo_code_extra",
+    `${"a".repeat(31)}_12345678`,
+    "a".repeat(40)
+  ].forEach((value) => {
     assert.equal(validateUsername(value).valid, false, value);
   });
 });
@@ -58,6 +81,14 @@ test("detects a signed-in account from GitHub metadata", () => {
   assert.deepEqual(detectAccountFromMetadata(metadata("Octo-Cat")), {
     status: "signed-in",
     username: "octo-cat",
+    reason: ""
+  });
+});
+
+test("detects a signed-in Enterprise Managed User from GitHub metadata", () => {
+  assert.deepEqual(detectAccountFromMetadata(metadata("Mona-Cat_OCTO")), {
+    status: "signed-in",
+    username: "mona-cat_octo",
     reason: ""
   });
 });

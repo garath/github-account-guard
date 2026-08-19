@@ -9,7 +9,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function createGuardLogic() {
   "use strict";
 
-  const USERNAME_PATTERN = /^(?!-)(?!.*--)[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i;
+  const USERNAME_PATTERN =
+    /^(?=.{1,39}$)(?!-)(?!.*--)[a-z\d](?:[a-z\d-]*[a-z\d])?(?:_[a-z\d]{3,9})?$/i;
 
   function normalizeUsername(value) {
     if (typeof value !== "string") {
@@ -34,7 +35,8 @@
       return {
         valid: false,
         username,
-        error: "Use 1-39 letters, numbers, or single hyphens; do not start or end with a hyphen."
+        error:
+          "Use a valid GitHub username (1-39 letters, numbers, or single hyphens) or an EMU username with an underscore shortcode suffix."
       };
     }
 

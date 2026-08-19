@@ -44,6 +44,8 @@ There are no third-party dependencies.
 ## Known limitation
 
 Account detection relies on GitHub's `meta[name="user-login"]` page metadata.
+Standard GitHub usernames and Enterprise Managed User aliases with an underscore
+shortcode suffix are supported.
 GitHub can change or temporarily omit this metadata. When it is absent or
 invalid, the extension displays the yellow verification-failed caution instead
 of silently treating the account as correct. GitHub client-side navigation and
